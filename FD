@@ -1,0 +1,226 @@
+import json
+import os
+import random
+import time
+ 
+# 1. Collecting User Data in JSON Format
+User_DataBase = "User_Data.json"
+ 
+if not os.path.exists(User_DataBase):
+    with open(User_DataBase, "w") as f:
+        json.dump({}, f)
+ 
+def load_users():
+    with open(User_DataBase, "r") as f:
+        return json.load(f)
+ 
+def save_users(users):
+    with open(User_DataBase, "w") as f:
+        json.dump(users, f, indent=4)
+ 
+# 2. Registration of New User
+def register():
+    users = load_users()
+ 
+    print("\n------ REGISTER ------")
+    username = input("☺️  Create Username: ").strip()
+    password = input("🔑  Create Password: ").strip()
+    location = input("🏠  Enter Your Location: ").strip().lower()
+ 
+    if username in users:
+        print("🔁 User Already Exists")
+        return None
+ 
+    print("🔄 Generating your PIN...")
+    time.sleep(2)
+    pin = random.randint(1000, 9999)
+ 
+    users[username] = {
+        "password": password,
+        "pin": pin,
+        "Home_location": location,
+        "transactions": []
+    }
+ 
+    save_users(users)
+ 
+    print("✅ Account Created Successfully")
+    print("🔐 Your PIN:", pin)
+    print("⚠️ Save your PIN safely")
+    time.sleep(2)
+ 
+    return username
+ 
+# 3. Login (Existing Users)
+def login():
+    users = load_users()
+ 
+    print("\n------ LOGIN -------")
+    username = input("☺️ Enter Username: ").strip()
+    password = input("🔑 Enter Password: ").strip()
+ 
+    if username in users and users[username]["password"] == password:
+        print("✅ Login Successful")
+        time.sleep(1)
+        return username
+    else:
+        print("❌ Invalid Login")
+        return None
+ 
+# 4. Pin Verification
+def verify_pin(username):
+    users = load_users()
+ 
+    try:
+        entered_pin = int(input("Enter Your PIN: "))
+    except ValueError:
+        print("❌ Invalid PIN Format")
+        return False
+ 
+    if entered_pin == users[username]["pin"]:
+        print("✅ PIN Verified")
+        time.sleep(1)
+        return True
+    else:
+        print("❌ Wrong PIN")
+        return False
+ 
+# 5. Fraud Detection & Transaction Logging
+def fraud_check(username):
+    users = load_users()
+    home_location = users[username]["Home_location"]
+ 
+    print("\n----- New Transaction -----")
+ 
+    try:
+        amount = int(input("Enter Transaction Amount: "))
+        transaction_location = input("Enter Transaction Location: ").strip().lower()
+    except ValueError:
+        print("❌ Invalid Input")
+        return
+ 
+    # Initialize transaction details
+    status = "Approved"
+    reason = ""
+ 
+    # Fraud checks
+    if amount >= 1000000:
+        status = "Blocked"
+        reason = "Too large"
+        print("⚠️ Transaction too large! Blocked")
+    elif transaction_location != home_location:
+        status = "Blocked"
+        reason = "Unusual location"
+        print("⚠️ Transaction from unusual location! Blocked")
+    else:
+        print("✅ Transaction Approved")
+        time.sleep(1)
+ 
+    # Save transaction
+    transaction = {
+        "amount": amount,
+        "location": transaction_location,
+        "status": status,
+        "time": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    if status == "Blocked":
+        transaction["reason"] = reason
+ 
+    users[username]["transactions"].append(transaction)
+    save_users(users)
+ 
+# 6. View Transaction History
+def view_transactions(username):
+    users = load_users()
+    transactions = users[username].get("transactions", [])
+    if not transactions:
+        print("No transactions yet.")
+        return
+    print("\n--- Transaction History ---")
+    for t in transactions:
+        line = f"{t['time']} | Amount: {t['amount']} | Location: {t['location']} | Status: {t['status']}"
+        if t['status'] == "Blocked":
+            line += f" | Reason: {t.get('reason','')}"
+        print(line)
+ 
+# 7. Update Home Location (Secure)
+def update_location(username):
+    users = load_users()
+    print("\n----- Update Home Location -----")
+ 
+    try:
+        entered_pin = int(input("Enter Your PIN: "))
+    except ValueError:
+        print("❌ Invalid PIN format")
+        return
+ 
+    if entered_pin != users[username]["pin"]:
+        print("❌ Incorrect PIN")
+        return
+ 
+    current_loc = input("Enter Current Home Location: ").strip().lower()
+    if current_loc != users[username]["Home_location"]:
+        print("❌ Current location does not match our records")
+        return
+ 
+    new_loc = input("Enter New Home Location: ").strip().lower()
+    if new_loc == users[username]["Home_location"]:
+        print("⚠️ New location is the same as current location")
+        return
+ 
+    users[username]["Home_location"] = new_loc
+    save_users(users)
+    print("✅ Home location updated successfully!")
+ 
+# 8. Main Program Execution
+def main():
+    print("\n=== SMART BANKING FRAUD SYSTEM ===")
+ 
+    while True:
+        print("\n1. Login\n2. Register\n3. Exit")
+        choice = input("Choose option (1/2/3): ").strip()
+ 
+        if choice == "1":
+            user = login()
+        elif choice == "2":
+            user = register()
+        elif choice == "3":
+            print("Exiting system...")
+            time.sleep(1)
+            break
+        else:
+            print("❌ Invalid Choice, try again")
+            continue
+ 
+        if user:
+            if verify_pin(user):
+                while True:
+                    print("\n1. Perform Transaction\n2. Update Home Location\n3. View Transactions\n4. Logout")
+                    action = input("Choose option: ").strip()
+ 
+                    if action == "1":
+                        fraud_check(user)
+                    elif action == "2":
+                        update_location(user)
+                    elif action == "3":
+                        view_transactions(user)
+                    elif action == "4":
+                        print("Logging out...")
+                        time.sleep(1)
+                        break
+                    else:
+                        print("❌ Invalid Choice")
+            else:
+                print("System Closed (PIN Failed)")
+        else:
+            print("System Closed (Login/Register Failed)")
+ 
+        again = input("\nDo you want to continue? (yes/no): ").strip().lower()
+        if again != "yes":
+            print("Exiting System...")
+            time.sleep(1)
+            print("Goodbye!")
+            break
+ 
+if __name__ == "__main__":
+    main()
